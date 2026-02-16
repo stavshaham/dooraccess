@@ -40,7 +40,6 @@ def check_buttons():
     global button_pressed, remove_access, add_access, check_access
     button_pressed = True
     if red_button.value() == 0:
-        print("red")
         remove_access = True
         add_access = False
         check_access = False
@@ -184,9 +183,7 @@ while True:
                     # allow_card_access(uid)
                     # To remove access, use this function:
                     # remove_card_access(uid)
-                    
-                    print(remove_access, add_access, check_access)
-                    
+                                        
                     if remove_access:
                         remove_card_access(uid)
                         print("Access removed: ", uid)
