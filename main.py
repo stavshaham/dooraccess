@@ -12,6 +12,18 @@ green_light = Pin(14, Pin.OUT)
 red_light = Pin(15, Pin.OUT)
 buzzer = Pin(16, Pin.OUT)
 
+# Input pins
+red_button = Pin(13, Pin.IN, Pin.PULL_UP)
+remove_access = False
+
+green_button = Pin(12, Pin.IN, Pin.PULL_UP)
+add_access = False
+
+blue_button = Pin(11, Pin.IN, Pin.PULL_UP)
+check_access = False
+
+button_pressed = False
+
 # Authorization settings
 AUTHORIZED_KEY = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
 AUTHORIZED_SECTOR = 1
@@ -19,17 +31,52 @@ AUTHORIZED_BLOCK = 0
 AUTHORIZED_VALUE = 0xA5
 
 # FUNCTIONS
+# This function checks if a button has been pressed
+def check_buttons():
+    """
+    This function checks if a button has been pressed
+    If a button has been pressed, then the corresponding boolean will be true
+    """
+    global button_pressed, remove_access, add_access, check_access
+    button_pressed = True
+    if red_button.value() == 0:
+        print("red")
+        remove_access = True
+        add_access = False
+        check_access = False
+        lcd.clear()
+        lcd.putstr("Waiting for card")
+    elif green_button.value() == 0:
+        remove_access = False
+        add_access = True
+        check_access = False
+        lcd.clear()
+        lcd.putstr("Waiting for card")
+    elif blue_button.value() == 0:
+        remove_access = False
+        add_access = False
+        check_access = True
+        lcd.clear()
+        lcd.putstr("Waiting for card")
+        
 # This function resets the output
 def reset_outputs():
     """
     Resets all outputs (LEDs, buzzer, LCD) to default state.
     Called after access granted or denied.
     """
+    global remove_access, add_access, check_access, button_pressed
     green_light.low()
     red_light.low()
     buzzer.low()
     lcd.clear()
-    lcd.putstr("Waiting for card")
+    remove_access = False
+    add_access = False
+    check_access = False
+    button_pressed = False
+    lcd.putstr("Waiting for")
+    lcd.move_to(0, 1)
+    lcd.putstr("button")
 
 # This function activates the electronics when the card is the correct one
 def access_granted():
@@ -71,8 +118,14 @@ def allow_card_access(uid):
     Returns:
         int: Status from writeSectorBlock (MFRC522.OK or MFRC522.ERR)
     """
+    
     data_to_write = [AUTHORIZED_VALUE] + [0x00]*15
-    return reader.writeSectorBlock(uid, AUTHORIZED_SECTOR, AUTHORIZED_BLOCK, data_to_write, keyA=AUTHORIZED_KEY)
+    reader.writeSectorBlock(uid, AUTHORIZED_SECTOR, AUTHORIZED_BLOCK, data_to_write, keyA=AUTHORIZED_KEY)
+    lcd.clear()
+    lcd.putstr("Access Added")
+    green_light.value(1)
+    utime.sleep(3)
+    reset_outputs()
 
 # This function wriets the card data and removes the card access
 def remove_card_access(uid):
@@ -85,8 +138,15 @@ def remove_card_access(uid):
     Returns:
         int: Status from writeSectorBlock (MFRC522.OK or MFRC522.ERR)
     """
+    
     data_to_write = [0x00]*16
-    return reader.writeSectorBlock(uid, AUTHORIZED_SECTOR, AUTHORIZED_BLOCK, data_to_write, keyA=AUTHORIZED_KEY)
+    reader.writeSectorBlock(uid, AUTHORIZED_SECTOR, AUTHORIZED_BLOCK, data_to_write, keyA=AUTHORIZED_KEY)
+    lcd.clear()
+    lcd.putstr("Access Removed")
+    buzzer.high()
+    red_light.value(1)
+    utime.sleep(3)
+    reset_outputs()
 
 # DISPLAY SETUP
 i2c = machine.I2C(0, sda=machine.Pin(0), scl=machine.Pin(1), freq=400000)
@@ -97,40 +157,51 @@ else:
     print("I2C Address:", hex(devices[0]))
     lcd = I2cLcd(i2c, devices[0], 2, 16)
     lcd.clear()
-    lcd.putstr("Waiting for card")
-
-print("Bring TAG closer...")
+    lcd.putstr("Waiting for")
+    lcd.move_to(0, 1)
+    lcd.putstr("button")
 
 
 while True:
     # Initializing the reader
     # Used to re-initialize to make sure the reader is not stuck
-    reader.init()
+    check_buttons()
     
-    # Checkes if a card is present
-    stat, _ = reader.request(reader.REQIDL)
+    if remove_access or add_access or check_access:
+        reader.init()
     
-    if stat == reader.OK:
-        # Gets the UID of the card
-        stat, uid = reader.SelectTagSN()
+        # Checkes if a card is present
+        stat, _ = reader.request(reader.REQIDL)
+        
         if stat == reader.OK:
-            # Authenticate using the authorized key (Key A)
-            status = reader.authKeys(uid, AUTHORIZED_SECTOR * 4, keyA=AUTHORIZED_KEY)
-            if status == reader.OK:
-                # For the first use, use this function to write the data:
-                # allow_card_access(uid)
-                # To remove access, use this function:
-                # remove_card_access(uid)
-                
-                # Read the sector block to check authorization
-                status, data = reader.readSectorBlock(uid, AUTHORIZED_SECTOR, AUTHORIZED_BLOCK, keyA=AUTHORIZED_KEY)
-                
-                # Grant or deny access based on the first byte value
-                if status == reader.OK and data[0] == AUTHORIZED_VALUE:
-                    access_granted()
-                else:
-                    access_denied()
-    
-    # Small delay to avoid multiple rapid reads
-    utime.sleep_ms(300)
+            # Gets the UID of the card
+            stat, uid = reader.SelectTagSN()
+            if stat == reader.OK:
+                # Authenticate using the authorized key (Key A)
+                status = reader.authKeys(uid, AUTHORIZED_SECTOR * 4, keyA=AUTHORIZED_KEY)
+                if status == reader.OK:
+                    # For the first use, use this function to write the data:
+                    # allow_card_access(uid)
+                    # To remove access, use this function:
+                    # remove_card_access(uid)
+                    
+                    print(remove_access, add_access, check_access)
+                    
+                    if remove_access:
+                        remove_card_access(uid)
+                        print("Access removed: ", uid)
+                    elif add_access:
+                        allow_card_access(uid)
+                        print("Access added: ", uid)
+                    elif check_access:
+                        # Read the sector block to check authorization
+                        status, data = reader.readSectorBlock(uid, AUTHORIZED_SECTOR, AUTHORIZED_BLOCK, keyA=AUTHORIZED_KEY)
+                        
+                        # Grant or deny access based on the first byte value
+                        if status == reader.OK and data[0] == AUTHORIZED_VALUE:
+                            access_granted()
+                        else:
+                            access_denied()
+        # Small delay to avoid multiple rapid reads
+        utime.sleep_ms(300)
     
