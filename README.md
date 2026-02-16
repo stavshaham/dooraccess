@@ -53,13 +53,16 @@ This project implements an **RFID-based access control system** using a **Raspbe
 | VCC     | 3.3V    |
 | GND     | GND     |
 
-**LEDs and Buzzer**  
+**LEDs, Buttons and Buzzer**  
 
 | Component  | Pico Pin |
 |------------|----------|
-| Green LED  | GPIO 14 |
-| Red LED    | GPIO 15 |
-| Buzzer     | GPIO 16 |
+| Red Button (Remove access)     | GPIO 13 |
+| Green Button (Add Access)      | GPIO 12 |
+| Blue Button (Check access)     | GPIO 11 |
+| Green LED                      | GPIO 14 |
+| Red LED                        | GPIO 15 |
+| Buzzer                         | GPIO 16 |
 
 ---
 
@@ -76,14 +79,19 @@ This project implements an **RFID-based access control system** using a **Raspbe
 ## How It Works
 
 1. The Pico initializes the **MFRC522 reader** and **LCD display**.
-2. When a card is placed near the reader:
+2. Click a button by the desired access
+3. When a card is placed near the reader:
    - The **UID** is read from the card.
+   - Checks by the button what to do
    - `authKeys()` authenticates the card’s sector using the **configured key**.
    - `readSectorBlock()` reads the block to check for the **authorized value (`0xA5`)**.
-3. Depending on the data:
+   - `writeSectorBlock()` writes the block to apply for the **authorized value (`0xA5`)** or **unauthorized value**.
+4. Depending on the data:
    - **Authorized** → Green LED + LCD “Welcome!” message
    - **Unauthorized** → Red LED + buzzer + LCD “Access denied!” message
-4. Outputs are reset after a short delay to allow multiple scans.
+   - **Add Access** → Green LED + LCD “Access added!” message
+   - **Remove Access** → Red LED + buzzer + LCD “Access removed!” message
+5. Outputs are reset after a short delay to allow multiple scans.
 
 > Random cards or credit cards will **not pass authentication** because they do not have MIFARE Classic memory sectors.
 
