@@ -121,7 +121,7 @@ def allow_card_access(uid):
     data_to_write = [AUTHORIZED_VALUE] + [0x00]*15
     reader.writeSectorBlock(uid, AUTHORIZED_SECTOR, AUTHORIZED_BLOCK, data_to_write, keyA=AUTHORIZED_KEY)
     lcd.clear()
-    lcd.putstr("Access Added")
+    lcd.putstr("Access added")
     green_light.value(1)
     utime.sleep(3)
     reset_outputs()
@@ -141,7 +141,7 @@ def remove_card_access(uid):
     data_to_write = [0x00]*16
     reader.writeSectorBlock(uid, AUTHORIZED_SECTOR, AUTHORIZED_BLOCK, data_to_write, keyA=AUTHORIZED_KEY)
     lcd.clear()
-    lcd.putstr("Access Removed")
+    lcd.putstr("Access removed")
     buzzer.high()
     red_light.value(1)
     utime.sleep(3)
@@ -179,10 +179,6 @@ while True:
                 # Authenticate using the authorized key (Key A)
                 status = reader.authKeys(uid, AUTHORIZED_SECTOR * 4, keyA=AUTHORIZED_KEY)
                 if status == reader.OK:
-                    # For the first use, use this function to write the data:
-                    # allow_card_access(uid)
-                    # To remove access, use this function:
-                    # remove_card_access(uid)
                                         
                     if remove_access:
                         remove_card_access(uid)
